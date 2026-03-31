@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Car, CalendarCheck, LogOut, Plus, Pencil, Trash2,
   CheckCircle, XCircle, Clock, X, MapPin,
-  LayoutDashboard, Globe, Star, TrendingUp, Eye, RotateCcw
+  LayoutDashboard, Globe, Star, TrendingUp, Eye, EyeOff, RotateCcw
 } from "lucide-react";
 import { api, type Vehicle, type Booking, type Destination } from "../lib/api";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ export function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -178,6 +179,17 @@ export function AdminDashboard() {
     }
   };
 
+  const handleDeleteBooking = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this booking? This action cannot be undone.")) return;
+    try {
+      await api.deleteBooking(id);
+      toast.success("Booking deleted");
+      loadData();
+    } catch {
+      toast.error("Failed to delete booking");
+    }
+  };
+
   // Computed values (must be before any early return to satisfy React hooks rules)
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
   const confirmedCount = bookings.filter((b) => b.status === "confirmed").length;
@@ -225,8 +237,14 @@ export function AdminDashboard() {
             </div>
             <div>
               <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                placeholder="Enter password" className="w-full px-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+              <div className="relative">
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
+                  placeholder="Enter password" className="w-full px-4 py-3 pr-11 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loggingIn}
               className="w-full bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-60">
@@ -431,6 +449,10 @@ export function AdminDashboard() {
                                   <RotateCcw className="h-4 w-4" />
                                 </button>
                               )}
+                              <button onClick={() => handleDeleteBooking(b.id)}
+                                className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors ml-1" title="Delete Booking">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -561,6 +583,10 @@ export function AdminDashboard() {
                                   <RotateCcw className="h-4 w-4" />
                                 </button>
                               )}
+                              <button onClick={() => handleDeleteBooking(b.id)}
+                                className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors ml-1" title="Delete Booking">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>

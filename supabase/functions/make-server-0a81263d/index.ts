@@ -33,14 +33,13 @@ const JWT_SECRET = Deno.env.get("JWT_SECRET") || "fallback-super-secret-key-for-
 const authMiddleware = async (c: any, next: any) => {
   const token = c.req.header("X-Admin-Token");
   if (!token) {
-    console.log("AuthMiddleware: Missing X-Admin-Token");
     return c.json({ error: "Unauthorized - Missing Admin Token" }, 401);
   }
   try {
     const payload = await verify(token, JWT_SECRET, "HS256");
     if (payload.role !== "admin") throw new Error("Not an admin");
     await next();
-  } catch {
+  } catch (err) {
     return c.json({ error: "Unauthorized - Invalid Token" }, 401);
   }
 };
@@ -423,7 +422,7 @@ app.post(`${PREFIX}/bookings`, async (c: any) => {
       }
     }
 
-    // Format checks (only if field exists)
+    // Format checks
     if (body.email && !EMAIL_RE.test(body.email)) {
       errors.email = "Invalid email format";
     }
@@ -477,7 +476,7 @@ app.post(`${PREFIX}/bookings`, async (c: any) => {
       return c.json({ error: "Validation failed", fields: errors }, 400);
     }
 
-    // Sanitize and build booking (force status to pending)
+    // Sanitize and build booking
     const id = `b${Date.now()}`;
     const booking = {
       customerName: sanitize(body.customerName),
@@ -537,6 +536,22 @@ app.put(`${PREFIX}/bookings/:id`, authMiddleware, async (c: any) => {
   } catch (error) {
     console.log("Update booking error:", error);
     return c.json({ error: `Failed to update booking: ${error}` }, 500);
+  }
+});
+
+app.delete(`${PREFIX}/bookings/:id`, authMiddleware, async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    const existing = await kv.get(`booking:${id}`);
+    if (!existing) return c.json({ error: "Booking not found" }, 404);
+    await kv.del(`booking:${id}`);
+    const index = (await kv.get("bookings_index")) || [];
+    const newIndex = index.filter((bid: string) => bid !== id);
+    await kv.set("bookings_index", newIndex);
+    return c.json({ message: "Booking deleted" });
+  } catch (error) {
+    console.log("Delete booking error:", error);
+    return c.json({ error: `Failed to delete booking: ${error}` }, 500);
   }
 });
 

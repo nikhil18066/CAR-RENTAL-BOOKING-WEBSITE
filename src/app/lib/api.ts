@@ -72,6 +72,7 @@ export const api = {
   },
   createBooking: (data: any) => request("/bookings", { method: "POST", body: JSON.stringify(data) }),
   updateBooking: (id: string, data: any) => request(`/bookings/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteBooking: (id: string) => request(`/bookings/${id}`, { method: "DELETE" }),
 
   getReviews: async () => {
     await ensureSeeded();

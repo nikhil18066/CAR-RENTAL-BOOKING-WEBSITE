@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useSearchParams, Link } from "react-router";
-import { MapPin, Calendar, Phone, User, Mail, Users, Car, CheckCircle, ArrowLeft, Sparkles, Shield, Clock, Star, AlertCircle } from "lucide-react";
+import { MapPin, Calendar, Phone, User, Mail, Users, Car, CheckCircle, ArrowLeft, Sparkles, Shield, Clock, Star, AlertCircle, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../lib/api";
 import { toast } from "sonner";
@@ -8,8 +8,88 @@ import { toast } from "sonner";
 type FieldErrors = Record<string, string>;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^\+?[\d\s-]{10,15}$/;
+const PHONE_RE = /^[6-9]\d{9}$/;
 const NAME_RE = /^[a-zA-Z\s'.,-]+$/;
+
+const INDIAN_LOCATIONS = [
+  "Mumbai, Maharashtra", "Pune, Maharashtra", "Nagpur, Maharashtra", "Nashik, Maharashtra", "Aurangabad, Maharashtra",
+  "Delhi, NCR", "New Delhi, NCR", "Noida, Uttar Pradesh", "Gurgaon, Haryana", "Faridabad, Haryana", "Ghaziabad, Uttar Pradesh",
+  "Bangalore, Karnataka", "Mysore, Karnataka", "Mangalore, Karnataka", "Hubli, Karnataka",
+  "Chennai, Tamil Nadu", "Coimbatore, Tamil Nadu", "Madurai, Tamil Nadu", "Salem, Tamil Nadu",
+  "Hyderabad, Telangana", "Warangal, Telangana", "Vijayawada, Andhra Pradesh", "Visakhapatnam, Andhra Pradesh", "Tirupati, Andhra Pradesh",
+  "Kolkata, West Bengal", "Howrah, West Bengal", "Siliguri, West Bengal", "Durgapur, West Bengal",
+  "Ahmedabad, Gujarat", "Surat, Gujarat", "Vadodara, Gujarat", "Rajkot, Gujarat",
+  "Jaipur, Rajasthan", "Udaipur, Rajasthan", "Jodhpur, Rajasthan", "Ajmer, Rajasthan", "Jaisalmer, Rajasthan",
+  "Lucknow, Uttar Pradesh", "Varanasi, Uttar Pradesh", "Agra, Uttar Pradesh", "Kanpur, Uttar Pradesh", "Prayagraj, Uttar Pradesh",
+  "Bhopal, Madhya Pradesh", "Indore, Madhya Pradesh", "Gwalior, Madhya Pradesh", "Ujjain, Madhya Pradesh",
+  "Chandigarh, Punjab", "Amritsar, Punjab", "Ludhiana, Punjab", "Jalandhar, Punjab",
+  "Patna, Bihar", "Gaya, Bihar", "Ranchi, Jharkhand", "Jamshedpur, Jharkhand",
+  "Bhubaneswar, Odisha", "Puri, Odisha", "Cuttack, Odisha",
+  "Kochi, Kerala", "Thiruvananthapuram, Kerala", "Kozhikode, Kerala", "Munnar, Kerala", "Alleppey, Kerala",
+  "Goa, Goa", "Panaji, Goa", "Margao, Goa",
+  "Shimla, Himachal Pradesh", "Manali, Himachal Pradesh", "Dharamshala, Himachal Pradesh",
+  "Dehradun, Uttarakhand", "Rishikesh, Uttarakhand", "Haridwar, Uttarakhand", "Mussoorie, Uttarakhand", "Nainital, Uttarakhand",
+  "Guwahati, Assam", "Shillong, Meghalaya", "Imphal, Manipur", "Gangtok, Sikkim", "Darjeeling, West Bengal",
+  "Srinagar, Jammu & Kashmir", "Leh, Ladakh", "Jammu, Jammu & Kashmir",
+  "Raipur, Chhattisgarh", "Bilaspur, Chhattisgarh",
+  "Thiruvananthapuram, Kerala", "Ooty, Tamil Nadu", "Kodaikanal, Tamil Nadu", "Pondicherry, Puducherry",
+  "Lonavala, Maharashtra", "Mahabaleshwar, Maharashtra", "Shirdi, Maharashtra",
+];
+
+function LocationSelect({ value, onChange, onBlur, placeholder, iconColor, field, inputBorder, showError }: {
+  value: string; onChange: (v: string) => void; onBlur: () => void;
+  placeholder: string; iconColor: string; field: string;
+  inputBorder: (f: string) => string; showError: (f: string) => string | undefined;
+}) {
+  const [query, setQuery] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value || ""); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return INDIAN_LOCATIONS.slice(0, 15);
+    const q = query.toLowerCase();
+    return INDIAN_LOCATIONS.filter(l => l.toLowerCase().includes(q)).slice(0, 15);
+  }, [query]);
+
+  return (
+    <div ref={ref} className="relative">
+      <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${iconColor}`} />
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <input type="text" value={query}
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => { setTimeout(() => { setOpen(false); onBlur(); }, 150); }}
+        placeholder={placeholder}
+        autoComplete="off"
+        className={`w-full pl-10 pr-9 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder(field)}`} />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white rounded-xl border border-border shadow-xl max-h-48 overflow-y-auto">
+          {filtered.map((loc) => (
+            <button key={loc} type="button"
+              onMouseDown={(e) => { e.preventDefault(); setQuery(loc); onChange(loc); setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center gap-2 ${
+                loc === value ? "bg-primary/10 text-primary font-semibold" : "text-foreground"
+              }`}>
+              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+              {loc}
+            </button>
+          ))}
+        </div>
+      )}
+      <FieldError message={showError(field)} />
+    </div>
+  );
+}
 
 function getTodayString(): string {
   const d = new Date();
@@ -71,11 +151,12 @@ export function BookingPage() {
       errors.email = "Please enter a valid email address";
     }
 
-    // Phone
+    // Phone — strict Indian 10-digit
+    const digits = f.phone.replace(/[^\d]/g, "");
     if (!f.phone.trim()) {
       errors.phone = "Phone number is required";
-    } else if (!PHONE_RE.test(f.phone.replace(/\s/g, ""))) {
-      errors.phone = "Enter a valid 10-digit phone number";
+    } else if (digits.length !== 10 || !PHONE_RE.test(digits)) {
+      errors.phone = "Enter a valid 10-digit Indian mobile number (starting with 6-9)";
     }
 
     // Passengers
@@ -246,13 +327,17 @@ export function BookingPage() {
                   <FieldError message={showError("email")} />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Phone Number *</label>
+                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Phone Number * <span className="normal-case text-[10px] font-normal">(10-digit Indian mobile)</span></label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input type="tel" value={form.phone}
-                      onChange={(e) => update("phone", e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
+                        update("phone", val);
+                      }}
                       onBlur={() => markTouched("phone")}
-                      placeholder="+91 98765 43210"
+                      placeholder="9876543210"
+                      maxLength={10}
                       className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("phone")}`} />
                   </div>
                   <FieldError message={showError("phone")} />
@@ -273,28 +358,16 @@ export function BookingPage() {
               <h2 className="text-lg font-extrabold mb-6 font-[Plus_Jakarta_Sans,Inter,sans-serif]">Journey Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Pickup Location *</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="text" value={form.pickupLocation}
-                      onChange={(e) => update("pickupLocation", e.target.value)}
-                      onBlur={() => markTouched("pickupLocation")}
-                      placeholder="Where to pick you up"
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("pickupLocation")}`} />
-                  </div>
-                  <FieldError message={showError("pickupLocation")} />
+                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Pickup Location * <span className="normal-case text-[10px] font-normal">(City, State)</span></label>
+                  <LocationSelect value={form.pickupLocation} onChange={(v) => update("pickupLocation", v)}
+                    onBlur={() => markTouched("pickupLocation")} placeholder="Type to search city..."
+                    iconColor="text-muted-foreground" field="pickupLocation" inputBorder={inputBorder} showError={showError} />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Destination *</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                    <input type="text" value={form.destination}
-                      onChange={(e) => update("destination", e.target.value)}
-                      onBlur={() => markTouched("destination")}
-                      placeholder="Where are you going"
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("destination")}`} />
-                  </div>
-                  <FieldError message={showError("destination")} />
+                  <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Destination * <span className="normal-case text-[10px] font-normal">(City, State)</span></label>
+                  <LocationSelect value={form.destination} onChange={(v) => update("destination", v)}
+                    onBlur={() => markTouched("destination")} placeholder="Type to search city..."
+                    iconColor="text-primary" field="destination" inputBorder={inputBorder} showError={showError} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Travel Date *</label>

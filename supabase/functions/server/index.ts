@@ -539,6 +539,22 @@ app.put(`${PREFIX}/bookings/:id`, authMiddleware, async (c: any) => {
   }
 });
 
+app.delete(`${PREFIX}/bookings/:id`, authMiddleware, async (c: any) => {
+  try {
+    const id = c.req.param("id");
+    const existing = await kv.get(`booking:${id}`);
+    if (!existing) return c.json({ error: "Booking not found" }, 404);
+    await kv.del(`booking:${id}`);
+    const index = (await kv.get("bookings_index")) || [];
+    const newIndex = index.filter((bid: string) => bid !== id);
+    await kv.set("bookings_index", newIndex);
+    return c.json({ message: "Booking deleted" });
+  } catch (error) {
+    console.log("Delete booking error:", error);
+    return c.json({ error: `Failed to delete booking: ${error}` }, 500);
+  }
+});
+
 // ============ REVIEWS ============
 app.get(`${PREFIX}/reviews`, async (c: any) => {
   try {
