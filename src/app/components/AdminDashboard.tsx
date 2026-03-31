@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Car, CalendarCheck, LogOut, Plus, Pencil, Trash2,
   CheckCircle, XCircle, Clock, X, MapPin,
-  LayoutDashboard, Globe, Star, TrendingUp, Eye
+  LayoutDashboard, Globe, Star, TrendingUp, Eye, RotateCcw
 } from "lucide-react";
 import { api, type Vehicle, type Booking, type Destination } from "../lib/api";
 import { toast } from "sonner";
@@ -159,10 +159,23 @@ export function AdminDashboard() {
     catch { toast.error("Failed to delete"); }
   };
 
-  // Booking actions
-  const handleBookingStatus = async (id: string, status: string) => {
-    try { await api.updateBooking(id, { status }); toast.success(`Booking ${status}`); loadData(); }
-    catch { toast.error("Failed to update booking"); }
+  // Booking actions with confirmation + revert support
+  const handleBookingStatus = async (id: string, newStatus: string) => {
+    const labels: Record<string, string> = {
+      confirmed: "confirm this booking",
+      cancelled: "cancel this booking",
+      pending: "revert this booking to pending",
+    };
+    const label = labels[newStatus] || `set status to ${newStatus}`;
+    if (!confirm(`Are you sure you want to ${label}?`)) return;
+    try {
+      await api.updateBooking(id, { status: newStatus });
+      toast.success(`Booking ${newStatus === "pending" ? "reverted to pending" : newStatus}`);
+      loadData();
+    } catch (err: any) {
+      const msg = err?.message || "Failed to update booking";
+      toast.error(msg);
+    }
   };
 
   // Computed values (must be before any early return to satisfy React hooks rules)
@@ -387,18 +400,38 @@ export function AdminDashboard() {
                             }`}>{b.status}</span>
                           </td>
                           <td className="px-5 py-3.5">
-                            {b.status === "pending" ? (
-                              <div className="flex gap-1.5">
-                                <button onClick={() => handleBookingStatus(b.id, "confirmed")}
-                                  className="bg-green-100 text-green-700 p-1.5 rounded-lg hover:bg-green-200 transition-colors" title="Confirm">
-                                  <CheckCircle className="h-4 w-4" />
+                            <div className="flex gap-1.5">
+                              {b.status === "pending" && (
+                                <>
+                                  <button onClick={() => handleBookingStatus(b.id, "confirmed")}
+                                    className="bg-green-100 text-green-700 p-1.5 rounded-lg hover:bg-green-200 transition-colors" title="Confirm">
+                                    <CheckCircle className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleBookingStatus(b.id, "cancelled")}
+                                    className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                              {b.status === "confirmed" && (
+                                <>
+                                  <button onClick={() => handleBookingStatus(b.id, "pending")}
+                                    className="bg-blue-100 text-blue-700 p-1.5 rounded-lg hover:bg-blue-200 transition-colors" title="Revert to Pending">
+                                    <RotateCcw className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleBookingStatus(b.id, "cancelled")}
+                                    className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                              {b.status === "cancelled" && (
+                                <button onClick={() => handleBookingStatus(b.id, "pending")}
+                                  className="bg-blue-100 text-blue-700 p-1.5 rounded-lg hover:bg-blue-200 transition-colors" title="Revert to Pending">
+                                  <RotateCcw className="h-4 w-4" />
                                 </button>
-                                <button onClick={() => handleBookingStatus(b.id, "cancelled")}
-                                  className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
-                                  <XCircle className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : <span className="text-xs text-muted-foreground">-</span>}
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -497,18 +530,38 @@ export function AdminDashboard() {
                             }`}>{b.status}</span>
                           </td>
                           <td className="px-5 py-4">
-                            {b.status === "pending" ? (
-                              <div className="flex gap-1.5">
-                                <button onClick={() => handleBookingStatus(b.id, "confirmed")}
-                                  className="bg-green-100 text-green-700 p-1.5 rounded-lg hover:bg-green-200 transition-colors" title="Confirm">
-                                  <CheckCircle className="h-4 w-4" />
+                            <div className="flex gap-1.5">
+                              {b.status === "pending" && (
+                                <>
+                                  <button onClick={() => handleBookingStatus(b.id, "confirmed")}
+                                    className="bg-green-100 text-green-700 p-1.5 rounded-lg hover:bg-green-200 transition-colors" title="Confirm">
+                                    <CheckCircle className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleBookingStatus(b.id, "cancelled")}
+                                    className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                              {b.status === "confirmed" && (
+                                <>
+                                  <button onClick={() => handleBookingStatus(b.id, "pending")}
+                                    className="bg-blue-100 text-blue-700 p-1.5 rounded-lg hover:bg-blue-200 transition-colors" title="Revert to Pending">
+                                    <RotateCcw className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleBookingStatus(b.id, "cancelled")}
+                                    className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                              {b.status === "cancelled" && (
+                                <button onClick={() => handleBookingStatus(b.id, "pending")}
+                                  className="bg-blue-100 text-blue-700 p-1.5 rounded-lg hover:bg-blue-200 transition-colors" title="Revert to Pending">
+                                  <RotateCcw className="h-4 w-4" />
                                 </button>
-                                <button onClick={() => handleBookingStatus(b.id, "cancelled")}
-                                  className="bg-red-100 text-red-700 p-1.5 rounded-lg hover:bg-red-200 transition-colors" title="Cancel">
-                                  <XCircle className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : <span className="text-xs text-muted-foreground">-</span>}
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -36,12 +36,25 @@ const authMiddleware = async (c: any, next: any) => {
     return c.json({ error: "Unauthorized - Missing Admin Token" }, 401);
   }
   try {
-    const payload = await verify(token, JWT_SECRET);
+    const payload = await verify(token, JWT_SECRET, "HS256");
     if (payload.role !== "admin") throw new Error("Not an admin");
     await next();
   } catch (err) {
     return c.json({ error: "Unauthorized - Invalid Token" }, 401);
   }
+};
+
+// Input sanitization helper
+const sanitize = (str: string): string =>
+  str.trim().replace(/<[^>]*>/g, "").substring(0, 500);
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[+]?[\d\s-]{10,15}$/;
+
+const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["pending", "cancelled"],
+  cancelled: ["pending"],
 };
 
 // Health check
@@ -399,12 +412,87 @@ app.get(`${PREFIX}/bookings`, async (c: any) => {
 app.post(`${PREFIX}/bookings`, async (c: any) => {
   try {
     const body = await c.req.json();
+    const errors: Record<string, string> = {};
+
+    // Required field checks
+    const requiredFields = ["customerName", "email", "phone", "pickupLocation", "destination", "vehicleType", "travelDate"];
+    for (const field of requiredFields) {
+      if (!body[field] || (typeof body[field] === "string" && body[field].trim().length === 0)) {
+        errors[field] = `${field} is required`;
+      }
+    }
+
+    // Format checks
+    if (body.email && !EMAIL_RE.test(body.email)) {
+      errors.email = "Invalid email format";
+    }
+    if (body.phone && !PHONE_RE.test(body.phone.replace(/\s/g, ""))) {
+      errors.phone = "Invalid phone number (10-15 digits required)";
+    }
+    if (body.customerName && body.customerName.trim().length < 2) {
+      errors.customerName = "Name must be at least 2 characters";
+    }
+    if (body.pickupLocation && body.pickupLocation.trim().length < 2) {
+      errors.pickupLocation = "Pickup location must be at least 2 characters";
+    }
+    if (body.destination && body.destination.trim().length < 2) {
+      errors.destination = "Destination must be at least 2 characters";
+    }
+
+    // Date validation
+    if (body.travelDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const travelDate = new Date(body.travelDate + "T00:00:00");
+      if (isNaN(travelDate.getTime())) {
+        errors.travelDate = "Invalid travel date format";
+      } else if (travelDate < today) {
+        errors.travelDate = "Travel date cannot be in the past";
+      }
+    }
+    if (body.returnDate) {
+      const returnDate = new Date(body.returnDate + "T00:00:00");
+      const travelDate = new Date((body.travelDate || "") + "T00:00:00");
+      if (isNaN(returnDate.getTime())) {
+        errors.returnDate = "Invalid return date format";
+      } else if (!isNaN(travelDate.getTime()) && returnDate < travelDate) {
+        errors.returnDate = "Return date must be on or after travel date";
+      }
+    }
+
+    // Passengers range
+    const passengers = parseInt(body.passengers) || 1;
+    if (passengers < 1 || passengers > 50) {
+      errors.passengers = "Passengers must be between 1 and 50";
+    }
+
+    // Valid vehicle types
+    const validVehicleTypes = ["Hatchback", "Sedan", "Premium Sedan", "SUV", "Minibus", "Bus"];
+    if (body.vehicleType && !validVehicleTypes.includes(body.vehicleType)) {
+      errors.vehicleType = "Invalid vehicle type";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return c.json({ error: "Validation failed", fields: errors }, 400);
+    }
+
+    // Sanitize and build booking
     const id = `b${Date.now()}`;
     const booking = {
-      ...body,
+      customerName: sanitize(body.customerName),
+      email: sanitize(body.email).toLowerCase(),
+      phone: sanitize(body.phone),
+      pickupLocation: sanitize(body.pickupLocation),
+      destination: sanitize(body.destination),
+      vehicleType: body.vehicleType,
+      vehicleName: body.vehicleName ? sanitize(body.vehicleName) : "",
+      travelDate: body.travelDate,
+      returnDate: body.returnDate || "",
+      passengers,
       id,
       status: "pending",
       createdAt: new Date().toISOString(),
+      statusHistory: [{ status: "pending", at: new Date().toISOString() }],
     };
     await kv.set(`booking:${id}`, booking);
     const index = (await kv.get("bookings_index")) || [];
@@ -423,7 +511,26 @@ app.put(`${PREFIX}/bookings/:id`, authMiddleware, async (c: any) => {
     const body = await c.req.json();
     const existing = await kv.get(`booking:${id}`);
     if (!existing) return c.json({ error: "Booking not found" }, 404);
-    const updated = { ...existing, ...body };
+
+    // Status transition validation
+    if (body.status) {
+      const currentStatus = existing.status || "pending";
+      const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+      if (!allowedTransitions.includes(body.status)) {
+        return c.json({
+          error: `Cannot change status from '${currentStatus}' to '${body.status}'`,
+          allowed: allowedTransitions,
+        }, 400);
+      }
+    }
+
+    // Build statusHistory audit trail
+    const history = existing.statusHistory || [];
+    if (body.status && body.status !== existing.status) {
+      history.push({ status: body.status, at: new Date().toISOString(), previousStatus: existing.status });
+    }
+
+    const updated = { ...existing, ...body, statusHistory: history };
     await kv.set(`booking:${id}`, updated);
     return c.json(updated);
   } catch (error) {

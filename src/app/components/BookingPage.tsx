@@ -1,14 +1,36 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSearchParams, Link } from "react-router";
-import { MapPin, Calendar, Phone, User, Mail, Users, Car, CheckCircle, ArrowLeft, Sparkles, Shield, Clock, Star } from "lucide-react";
+import { MapPin, Calendar, Phone, User, Mail, Users, Car, CheckCircle, ArrowLeft, Sparkles, Shield, Clock, Star, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { api } from "../lib/api";
 import { toast } from "sonner";
+
+type FieldErrors = Record<string, string>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?[\d\s-]{10,15}$/;
+const NAME_RE = /^[a-zA-Z\s'.,-]+$/;
+
+function getTodayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-600 mt-1.5 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+      <AlertCircle className="h-3 w-3 shrink-0" />
+      {message}
+    </p>
+  );
+}
 
 export function BookingPage() {
   const [searchParams] = useSearchParams();
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState({
     customerName: "",
     email: "",
@@ -22,18 +44,121 @@ export function BookingPage() {
     passengers: 1,
   });
 
+  const today = useMemo(() => getTodayString(), []);
+
   const update = (field: string, value: any) => setForm((f) => ({ ...f, [field]: value }));
+
+  const markTouched = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
+
+  // Validation logic — returns all errors for current form state
+  const validate = useCallback((): FieldErrors => {
+    const errors: FieldErrors = {};
+    const f = form;
+
+    // Full Name
+    if (!f.customerName.trim()) {
+      errors.customerName = "Full name is required";
+    } else if (f.customerName.trim().length < 2) {
+      errors.customerName = "Name must be at least 2 characters";
+    } else if (!NAME_RE.test(f.customerName.trim())) {
+      errors.customerName = "Name should contain only letters and spaces";
+    }
+
+    // Email
+    if (!f.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!EMAIL_RE.test(f.email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    // Phone
+    if (!f.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!PHONE_RE.test(f.phone.replace(/\s/g, ""))) {
+      errors.phone = "Enter a valid 10-digit phone number";
+    }
+
+    // Passengers
+    if (f.passengers < 1 || f.passengers > 50) {
+      errors.passengers = "Passengers must be between 1 and 50";
+    }
+
+    // Pickup Location
+    if (!f.pickupLocation.trim()) {
+      errors.pickupLocation = "Pickup location is required";
+    } else if (f.pickupLocation.trim().length < 2) {
+      errors.pickupLocation = "Pickup location must be at least 2 characters";
+    }
+
+    // Destination
+    if (!f.destination.trim()) {
+      errors.destination = "Destination is required";
+    } else if (f.destination.trim().length < 2) {
+      errors.destination = "Destination must be at least 2 characters";
+    }
+
+    // Travel Date
+    if (!f.travelDate) {
+      errors.travelDate = "Travel date is required";
+    } else if (f.travelDate < today) {
+      errors.travelDate = "Travel date cannot be in the past";
+    }
+
+    // Return Date (optional but must be valid if set)
+    if (f.returnDate) {
+      if (f.travelDate && f.returnDate < f.travelDate) {
+        errors.returnDate = "Return date must be on or after travel date";
+      }
+      if (f.returnDate < today) {
+        errors.returnDate = "Return date cannot be in the past";
+      }
+    }
+
+    // Vehicle Type
+    if (!f.vehicleType) {
+      errors.vehicleType = "Please select a vehicle type";
+    }
+
+    return errors;
+  }, [form, today]);
+
+  const errors = validate();
+  const hasErrors = Object.keys(errors).length > 0;
+
+  // Show error for a field only if it's been touched or form was submitted
+  const showError = (field: string) => (touched[field] ? errors[field] : undefined);
+
+  const inputBorder = (field: string) =>
+    touched[field] && errors[field]
+      ? "border-red-400 ring-2 ring-red-100 focus:ring-red-200 focus:border-red-400"
+      : "border-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary/30";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Touch all fields to reveal any errors
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(form).forEach((k) => (allTouched[k] = true));
+    setTouched(allTouched);
+
+    if (hasErrors) {
+      toast.error("Please fix the highlighted errors before submitting.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.createBooking(form);
       setSubmitted(true);
       toast.success("Booking submitted successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Booking error:", err);
-      toast.error("Failed to submit booking. Please try again.");
+      // Show server-side validation errors if returned
+      if (err?.message?.includes("Validation failed")) {
+        toast.error("Server validation failed. Please check your input.");
+      } else {
+        toast.error("Failed to submit booking. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -58,7 +183,7 @@ export function BookingPage() {
               Back to Home
             </Link>
             <button
-              onClick={() => { setSubmitted(false); setForm({ customerName: "", email: "", phone: "", pickupLocation: "", destination: "", vehicleType: "", vehicleName: "", travelDate: "", returnDate: "", passengers: 1 }); }}
+              onClick={() => { setSubmitted(false); setTouched({}); setForm({ customerName: "", email: "", phone: "", pickupLocation: "", destination: "", vehicleType: "", vehicleName: "", travelDate: "", returnDate: "", passengers: 1 }); }}
               className="border border-border px-6 py-3 rounded-xl font-bold text-sm hover:bg-muted transition-all"
             >
               New Booking
@@ -93,40 +218,55 @@ export function BookingPage() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-border p-6 md:p-8 shadow-sm">
+            <form onSubmit={handleSubmit} noValidate className="bg-white rounded-3xl border border-border p-6 md:p-8 shadow-sm">
               <h2 className="text-lg font-extrabold mb-6 font-[Plus_Jakarta_Sans,Inter,sans-serif]">Personal Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Full Name *</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="text" required value={form.customerName} onChange={(e) => update("customerName", e.target.value)}
-                      placeholder="Your full name" className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="text" value={form.customerName}
+                      onChange={(e) => update("customerName", e.target.value)}
+                      onBlur={() => markTouched("customerName")}
+                      placeholder="Your full name"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("customerName")}`} />
                   </div>
+                  <FieldError message={showError("customerName")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Email *</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="email" required value={form.email} onChange={(e) => update("email", e.target.value)}
-                      placeholder="your@email.com" className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="email" value={form.email}
+                      onChange={(e) => update("email", e.target.value)}
+                      onBlur={() => markTouched("email")}
+                      placeholder="your@email.com"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("email")}`} />
                   </div>
+                  <FieldError message={showError("email")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Phone Number *</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="tel" required value={form.phone} onChange={(e) => update("phone", e.target.value)}
-                      placeholder="+91 98765 43210" className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="tel" value={form.phone}
+                      onChange={(e) => update("phone", e.target.value)}
+                      onBlur={() => markTouched("phone")}
+                      placeholder="+91 98765 43210"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("phone")}`} />
                   </div>
+                  <FieldError message={showError("phone")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Passengers</label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="number" min={1} max={50} value={form.passengers} onChange={(e) => update("passengers", parseInt(e.target.value))}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="number" min={1} max={50} value={form.passengers}
+                      onChange={(e) => update("passengers", parseInt(e.target.value) || 1)}
+                      onBlur={() => markTouched("passengers")}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("passengers")}`} />
                   </div>
+                  <FieldError message={showError("passengers")} />
                 </div>
               </div>
 
@@ -136,40 +276,56 @@ export function BookingPage() {
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Pickup Location *</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="text" required value={form.pickupLocation} onChange={(e) => update("pickupLocation", e.target.value)}
-                      placeholder="Where to pick you up" className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="text" value={form.pickupLocation}
+                      onChange={(e) => update("pickupLocation", e.target.value)}
+                      onBlur={() => markTouched("pickupLocation")}
+                      placeholder="Where to pick you up"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("pickupLocation")}`} />
                   </div>
+                  <FieldError message={showError("pickupLocation")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Destination *</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                    <input type="text" required value={form.destination} onChange={(e) => update("destination", e.target.value)}
-                      placeholder="Where are you going" className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="text" value={form.destination}
+                      onChange={(e) => update("destination", e.target.value)}
+                      onBlur={() => markTouched("destination")}
+                      placeholder="Where are you going"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("destination")}`} />
                   </div>
+                  <FieldError message={showError("destination")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Travel Date *</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="date" required value={form.travelDate} onChange={(e) => update("travelDate", e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="date" min={today} value={form.travelDate}
+                      onChange={(e) => update("travelDate", e.target.value)}
+                      onBlur={() => markTouched("travelDate")}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("travelDate")}`} />
                   </div>
+                  <FieldError message={showError("travelDate")} />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Return Date</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input type="date" value={form.returnDate} onChange={(e) => update("returnDate", e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                    <input type="date" min={form.travelDate || today} value={form.returnDate}
+                      onChange={(e) => update("returnDate", e.target.value)}
+                      onBlur={() => markTouched("returnDate")}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("returnDate")}`} />
                   </div>
+                  <FieldError message={showError("returnDate")} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Vehicle Type *</label>
                   <div className="relative">
                     <Car className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <select required value={form.vehicleType} onChange={(e) => update("vehicleType", e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none appearance-none">
+                    <select value={form.vehicleType}
+                      onChange={(e) => update("vehicleType", e.target.value)}
+                      onBlur={() => markTouched("vehicleType")}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none appearance-none ${inputBorder("vehicleType")}`}>
                       <option value="">Select vehicle type</option>
                       <option value="Hatchback">Hatchback (4 seater)</option>
                       <option value="Sedan">Sedan (4 seater)</option>
@@ -179,6 +335,7 @@ export function BookingPage() {
                       <option value="Bus">Bus (40 seater)</option>
                     </select>
                   </div>
+                  <FieldError message={showError("vehicleType")} />
                 </div>
               </div>
 
