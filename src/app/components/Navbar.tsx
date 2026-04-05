@@ -66,11 +66,11 @@ export function Navbar() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3">
-            <a href="tel:+919876543210" className={`flex items-center gap-2 text-sm transition-colors ${!scrolled && isHome ? "text-white/60 hover:text-white" : "text-muted-foreground hover:text-primary"}`}>
+            <a href="tel:+919422273107" className={`flex items-center gap-2 text-sm transition-colors ${!scrolled && isHome ? "text-white/60 hover:text-white" : "text-muted-foreground hover:text-primary"}`}>
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Phone className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="font-medium">+91 98765 43210</span>
+              <span className="font-medium">+91 94222 73107</span>
             </a>
             <Link
               to="/book"

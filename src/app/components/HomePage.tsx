@@ -582,7 +582,7 @@ export function HomePage() {
                 Book Now
               </Link>
               <a
-                href="tel:+919876543210"
+                href="tel:+919422273107"
                 className="border-2 border-white/30 text-white px-10 py-4 rounded-2xl font-bold hover:bg-white/10 transition-all flex items-center gap-2"
               >
                 <Phone className="h-4 w-4" /> Call Us

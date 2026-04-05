@@ -336,7 +336,7 @@ export function BookingPage() {
                         update("phone", val);
                       }}
                       onBlur={() => markTouched("phone")}
-                      placeholder="9876543210"
+                      placeholder="9422273107"
                       maxLength={10}
                       className={`w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border text-sm outline-none ${inputBorder("phone")}`} />
                   </div>
@@ -449,8 +449,8 @@ export function BookingPage() {
             <div className="bg-gradient-to-br from-[#0f0f23] to-[#1a1a3e] rounded-2xl p-6 text-white">
               <h3 className="font-bold text-sm mb-3">Need Help Booking?</h3>
               <p className="text-white/50 text-sm mb-4">Our team is available 24/7 to assist you.</p>
-              <a href="tel:+919876543210" className="flex items-center gap-2 text-primary font-bold text-sm">
-                <Phone className="h-4 w-4" /> +91 98765 43210
+              <a href="tel:+919422273107" className="flex items-center gap-2 text-primary font-bold text-sm">
+                <Phone className="h-4 w-4" /> +91 94222 73107
               </a>
             </div>
           </div>

@@ -29,7 +29,7 @@ export function FloatingButtons() {
       </AnimatePresence>
 
       <motion.a
-        href="https://wa.me/919876543210?text=Hi%2C%20I%20would%20like%20to%20book%20a%20vehicle"
+        href="https://wa.me/919422273107?text=Hi%2C%20I%20would%20like%20to%20book%20a%20vehicle"
         target="_blank"
         rel="noopener noreferrer"
         initial={{ scale: 0 }}

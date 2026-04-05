@@ -154,7 +154,7 @@ export function VehicleDetailPage() {
                   Book This Vehicle
                 </Link>
                 <a
-                  href="tel:+919876543210"
+                  href="tel:+919422273107"
                   className="px-6 py-4 rounded-2xl border border-white/15 hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-sm"
                 >
                   <Phone className="h-4 w-4" /> Call

@@ -114,7 +114,7 @@ export function ContactPage() {
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Phone</label>
                     <input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)}
-                      placeholder="+91 98765 43210" className="w-full px-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
+                      placeholder="+91 94222 73107" className="w-full px-4 py-3 rounded-xl bg-secondary border border-transparent text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none" />
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Subject *</label>
