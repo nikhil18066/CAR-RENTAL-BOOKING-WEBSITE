@@ -62,19 +62,21 @@ export function Footer() {
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <span className="text-white/40 text-sm">123 Travel Street, Mumbai, Maharashtra 400001</span>
+                <a href="https://maps.google.com/?q=Nildhara+housing+society,+1645,+near+Sai+Baba+mandir,+MHB+Colony,+Satpur+Colony,+Nashik,+Maharashtra+422007,+India" target="_blank" rel="noopener noreferrer" className="text-white/40 text-sm hover:text-primary transition-colors leading-relaxed">
+                  Nildhara housing society, 1645, near Sai Baba mandir, MHB Colony, Satpur Colony, Nashik, Maharashtra 422007, India
+                </a>
               </li>
               <li className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Phone className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <a href="tel:+919876543210" className="text-white/40 text-sm hover:text-primary transition-colors">+91 98765 43210</a>
+                <a href="tel:+919422273107" className="text-white/40 text-sm hover:text-primary transition-colors">+91 94222 73107</a>
               </li>
               <li className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Mail className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <a href="mailto:info@shreeganesh.com" className="text-white/40 text-sm hover:text-primary transition-colors">info@shreeganesh.com</a>
+                <a href="mailto:kishorsontakke2@gmail.com" className="text-white/40 text-sm hover:text-primary transition-colors">kishorsontakke2@gmail.com</a>
               </li>
             </ul>
           </div>

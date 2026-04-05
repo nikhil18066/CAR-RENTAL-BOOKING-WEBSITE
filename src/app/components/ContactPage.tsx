@@ -35,9 +35,9 @@ export function ContactPage() {
   };
 
   const contactInfo = [
-    { icon: MapPin, label: "Our Office", value: "123 Travel Street, Mumbai, Maharashtra 400001", color: "from-blue-500 to-blue-600" },
-    { icon: Phone, label: "Phone", value: "+91 98765 43210", color: "from-green-500 to-green-600" },
-    { icon: Mail, label: "Email", value: "info@shreeganesh.com", color: "from-purple-500 to-purple-600" },
+    { icon: MapPin, label: "Our Office", value: "Nildhara housing society, 1645, near Sai Baba mandir, MHB Colony, Satpur Colony, Nashik, Maharashtra 422007, India", color: "from-blue-500 to-blue-600", href: "https://maps.google.com/?q=Nildhara+housing+society,+1645,+near+Sai+Baba+mandir,+MHB+Colony,+Satpur+Colony,+Nashik,+Maharashtra+422007,+India" },
+    { icon: Phone, label: "Phone", value: "+91 94222 73107", color: "from-green-500 to-green-600", href: "tel:+919422273107" },
+    { icon: Mail, label: "Email", value: "kishorsontakke2@gmail.com", color: "from-purple-500 to-purple-600", href: "mailto:kishorsontakke2@gmail.com" },
     { icon: Clock, label: "Working Hours", value: "24/7 Available", color: "from-orange-500 to-orange-600" },
   ];
 
@@ -72,7 +72,11 @@ export function ContactPage() {
                 <info.icon className="h-5 w-5 text-white" />
               </div>
               <h3 className="font-bold mb-1 text-sm font-[Plus_Jakarta_Sans,Inter,sans-serif]">{info.label}</h3>
-              <p className="text-sm text-muted-foreground">{info.value}</p>
+              {info.href ? (
+                <a href={info.href} target={info.href.startsWith("http") ? "_blank" : undefined} rel={info.href.startsWith("http") ? "noopener noreferrer" : undefined} className="text-sm text-muted-foreground hover:text-primary transition-colors block leading-relaxed">{info.value}</a>
+              ) : (
+                <p className="text-sm text-muted-foreground">{info.value}</p>
+              )}
             </motion.div>
           ))}
         </div>
